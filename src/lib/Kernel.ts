@@ -73,7 +73,7 @@ export class Kernel {
     }
 
     this.isInitialised = true;
-    manager.emit(new KernelAfterInitEvent());
+    await manager.emit(new KernelAfterInitEvent());
   }
 
   /**
