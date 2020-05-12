@@ -1,6 +1,6 @@
 {
   "name": "@kaviar/core",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "The ultimate module orchestrator for your enterprise-level applications",
   "main": "dist/index.js",
   "repository": {
