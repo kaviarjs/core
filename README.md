@@ -277,10 +277,10 @@ class MyBundle extends Bundle {
 Let's say we have a bundle that needs an API key, for example, `MailBundle` needs some authentication parameters. The way we connect Bundle's config to the container is by setting some constants into the container which the services use in their instantiation. Please do not use strings as strings may collide, rely on symbols.
 
 ```typescript
-import { Inject, Service, Bundle } from "@kaviar/core";
+import { Inject, Service, Token, Bundle } from "@kaviar/core";
 
 const Constants = {
-  API_KEY: Symbol(),
+  API_KEY: new Token(),
 };
 
 @Service()

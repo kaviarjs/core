@@ -7,4 +7,5 @@ import { EventManager, Event, Listener } from "./lib/EventManager";
 
 export { Service, Inject, ContainerInstance, Token } from "typedi";
 export * from "./lib/Events";
+export * from "./lib/defs";
 export { Kernel, Bundle, EventManager, Event, Listener, KernelContext };
