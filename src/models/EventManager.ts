@@ -1,19 +1,12 @@
-import { Service, ContainerInstance, Inject } from "typedi";
+import { Service } from "typedi";
+import {
+  IListenerStorage,
+  IEventConstructor,
+  EventHandlerType,
+  IEventHandlerOptions,
+} from "../defs";
 
-export type EventClassType = { new (): Event };
-export type EventHandlerType = (event: Event<any>) => void;
-export type GlobalHandlerType<E, T> = (event: E, data: T) => void;
-export type ListenerStorage = {
-  order: number;
-  handler: EventHandlerType;
-};
-
-export type HandlerOptions = { order: number };
 export const HandlerOptionsDefaults = { order: 0 };
-
-export interface Initialisable {
-  init(): void;
-}
 
 export class Event<T = any> {
   public data: T;
@@ -33,8 +26,8 @@ export class Event<T = any> {
 
 @Service()
 export class EventManager {
-  protected listeners = new Map<typeof Event, ListenerStorage[]>();
-  protected globalListeners: ListenerStorage[] = [];
+  protected listeners = new Map<typeof Event, IListenerStorage[]>();
+  protected globalListeners: IListenerStorage[] = [];
 
   /**
    * Emit to all listeners of this event
@@ -44,7 +37,7 @@ export class EventManager {
     await event.validate();
 
     let listeners = this.getListeners(
-      event.constructor as EventClassType
+      event.constructor as IEventConstructor
     ).slice(0);
 
     // This is not a very smart idea, to always sort by the global listeners
@@ -56,8 +49,16 @@ export class EventManager {
       this.sortListeners(listeners);
     }
 
+    let ok;
     for (const listener of listeners) {
-      await listener.handler(event);
+      ok = true;
+      if (listener.filter) {
+        ok = listener.filter(event);
+      }
+
+      if (ok) {
+        await listener.handler(event);
+      }
     }
   }
 
@@ -65,15 +66,16 @@ export class EventManager {
    * Adds the handler to this event
    */
   public addListener(
-    eventClass: EventClassType,
+    eventClass: IEventConstructor,
     handler: EventHandlerType,
-    options: HandlerOptions = HandlerOptionsDefaults
+    options: IEventHandlerOptions = HandlerOptionsDefaults
   ): EventManager {
     const listeners = this.getListeners(eventClass);
 
     listeners.push({
       handler,
       order: options.order,
+      filter: options.filter,
     });
 
     this.sortListeners(listeners);
@@ -81,12 +83,19 @@ export class EventManager {
     return this;
   }
 
+  /**
+   * Listen to all events
+   *
+   * @param handler
+   * @param options
+   */
   public addGlobalListener(
     handler: EventHandlerType,
-    options: HandlerOptions = HandlerOptionsDefaults
+    options: IEventHandlerOptions = HandlerOptionsDefaults
   ) {
     this.globalListeners.push({
       order: options.order,
+      filter: options.filter,
       handler,
     });
 
@@ -95,7 +104,7 @@ export class EventManager {
     return this;
   }
 
-  protected getListeners(eventClass: EventClassType): ListenerStorage[] {
+  protected getListeners(eventClass: IEventConstructor): IListenerStorage[] {
     if (!this.listeners.has(eventClass)) {
       this.listeners.set(eventClass, []);
     }
@@ -106,7 +115,7 @@ export class EventManager {
   /**
    * @param array
    */
-  protected sortListeners(array: ListenerStorage[]) {
+  protected sortListeners(array: IListenerStorage[]) {
     array.sort((a, b) => {
       return a.order - b.order;
     });
@@ -127,7 +136,7 @@ export class EventManager {
    * Removes the handler from this event.
    */
   public removeListener(
-    eventClass: EventClassType,
+    eventClass: IEventConstructor,
     handler: EventHandlerType
   ): EventManager {
     let listeners = this.listeners.get(eventClass);
@@ -141,40 +150,5 @@ export class EventManager {
     this.listeners.set(eventClass, listeners);
 
     return this;
-  }
-}
-
-@Service()
-export class Listener implements Initialisable {
-  @Inject(() => EventManager)
-  protected manager: EventManager;
-
-  @Inject(() => ContainerInstance)
-  protected container: ContainerInstance;
-
-  public init() {
-    throw new Error(`init() method not implemented`);
-  }
-
-  /**
-   * Listen to events
-   * @param eventClass This is the event class, make sure you don't use an instance here
-   * @param handler This is the function that handles the event emission
-   * @param options Options
-   */
-  protected on(
-    eventClass: EventClassType,
-    handler: EventHandlerType,
-    options: HandlerOptions = HandlerOptionsDefaults
-  ) {
-    this.manager.addListener(eventClass, handler, options);
-  }
-
-  /**
-   * Returns the service by its id
-   * @param serviceId
-   */
-  public get<T = any>(serviceId: any): T {
-    return this.container.get<T>(serviceId);
   }
 }

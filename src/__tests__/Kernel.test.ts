@@ -1,6 +1,6 @@
-import { Bundle } from "../lib/Bundle";
+import { Bundle } from "../models/Bundle";
 import { assert, expect } from "chai";
-import { Kernel } from "../lib/Kernel";
+import { Kernel } from "../models/Kernel";
 
 describe("Kernel", () => {
   it("Should be instantiable with bundles, parameters, and can addBundles", async () => {

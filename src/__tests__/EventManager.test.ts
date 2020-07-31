@@ -1,7 +1,8 @@
 import { assert, expect } from "chai";
-import { Event, EventManager, Listener } from "../lib/EventManager";
-import { Kernel } from "../lib/Kernel";
-import { Bundle } from "../lib/Bundle";
+import { Event, EventManager } from "../models/EventManager";
+import { Listener, On } from "../models/Listener";
+import { Kernel } from "../models/Kernel";
+import { Bundle } from "../models/Bundle";
 
 describe("EventManager", () => {
   it("should work properly", done => {
@@ -166,13 +167,18 @@ describe("EventManager", () => {
     });
   });
 
-  it("should work instantiating bundle servces should throw error", done => {
+  it("should work with @On decorator", done => {
     class InvoicePaid extends Event {}
-    class InvoiceListener extends Listener {}
+    class InvoiceListener extends Listener {
+      @On(InvoicePaid)
+      async onInvoicePaid(event: InvoicePaid) {
+        done();
+      }
+    }
 
     class InvoiceBundle extends Bundle {
       async init() {
-        await this.warmup([InvoiceListener]);
+        this.warmup([InvoiceListener]);
       }
     }
 
@@ -180,6 +186,8 @@ describe("EventManager", () => {
       bundles: [new InvoiceBundle()],
     });
 
-    kernel.init().catch(e => done());
+    kernel.init().then(() => {
+      kernel.container.get(EventManager).emit(new InvoicePaid());
+    });
   });
 });

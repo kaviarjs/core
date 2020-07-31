@@ -1,11 +1,22 @@
-import { KernelContext } from "./lib/defs";
+import { KernelContext } from "./defs";
 import "reflect-metadata";
 
-import { Kernel } from "./lib/Kernel";
-import { Bundle } from "./lib/Bundle";
-import { EventManager, Event, Listener } from "./lib/EventManager";
+import { Kernel } from "./models/Kernel";
+import { Bundle } from "./models/Bundle";
+import { Exception } from "./models/Exception";
+import { EventManager, Event } from "./models/EventManager";
+import { Listener, On } from "./models/Listener";
 
-export { Service, Inject, ContainerInstance, Token } from "typedi";
-export * from "./lib/Events";
-export * from "./lib/defs";
-export { Kernel, Bundle, EventManager, Event, Listener, KernelContext };
+export * from "./di";
+export * from "./events";
+export * from "./defs";
+export {
+  Kernel,
+  Bundle,
+  EventManager,
+  Event,
+  Listener,
+  On,
+  KernelContext,
+  Exception,
+};

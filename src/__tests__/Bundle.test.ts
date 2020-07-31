@@ -1,6 +1,6 @@
-import { Bundle } from "../lib/Bundle";
+import { Bundle } from "../models/Bundle";
 import { assert } from "chai";
-import { Kernel } from "../lib/Kernel";
+import { Kernel } from "../models/Kernel";
 
 describe("Bundle", () => {
   it("Should work with a config and a default config", () => {

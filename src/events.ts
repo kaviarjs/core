@@ -1,12 +1,12 @@
-import { Bundle } from "./Bundle";
-import { Event } from "./EventManager";
+import { Bundle } from "./models/Bundle";
+import { Event } from "./models/EventManager";
 
 export class KernelBeforeInitEvent extends Event {}
 export class KernelAfterInitEvent extends Event {}
 
-type BundleRelatedEventType = {
+interface BundleRelatedEventType {
   bundle: Bundle;
-};
+}
 
 export class BundleBeforePrepareEvent extends Event<BundleRelatedEventType> {}
 

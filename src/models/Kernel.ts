@@ -1,6 +1,5 @@
 import { Bundle } from "./Bundle";
 import { ContainerInstance } from "typedi";
-import { Errors, raise } from "./Errors";
 import {
   KernelBeforeInitEvent,
   KernelAfterInitEvent,
@@ -8,9 +7,21 @@ import {
   BundleBeforePrepareEvent,
   BundleAfterInitEvent,
   BundleAfterPrepareEvent,
-} from "./Events";
-import { KernelOptions, KernelParametersType, KernelContext } from "./defs";
+} from "../events";
+import {
+  IKernelOptions,
+  IKernelParameters,
+  KernelContext,
+  IBundle,
+  IBundleConstructor,
+  KernelPhase,
+  BundlePhase,
+} from "../defs";
 import { EventManager } from "./EventManager";
+import {
+  KernelFrozenException,
+  BundleSingleInstanceException,
+} from "../exceptions";
 
 export const KernelDefaultParameters = {
   debug: true,
@@ -18,13 +29,13 @@ export const KernelDefaultParameters = {
 };
 
 export class Kernel {
-  readonly options: KernelOptions;
+  readonly options: IKernelOptions;
   readonly bundles: Bundle<any>[] = [];
-  readonly parameters: KernelParametersType;
+  readonly parameters: IKernelParameters;
   readonly container: ContainerInstance;
-  isInitialised = false;
+  protected phase: KernelPhase;
 
-  constructor(options: KernelOptions = {}) {
+  constructor(options: IKernelOptions = {}) {
     this.options = options;
     this.parameters = options.parameters
       ? Object.assign({}, KernelDefaultParameters, options.parameters)
@@ -49,30 +60,45 @@ export class Kernel {
    */
   async init() {
     for (const bundle of this.bundles) {
+      bundle.setPhase(BundlePhase.SETUP);
       await bundle.setup(this);
     }
 
+    this.phase = KernelPhase.HOOKING;
     for (const bundle of this.bundles) {
+      bundle.setPhase(BundlePhase.HOOKING);
       await bundle.hook();
+      bundle.setPhase(BundlePhase.HOOKED);
     }
 
     const manager = this.get<EventManager>(EventManager);
 
+    this.phase = KernelPhase.PREPARING;
     await manager.emit(new KernelBeforeInitEvent());
 
     for (const bundle of this.bundles) {
+      bundle.setPhase(BundlePhase.BEFORE_PREPARATION);
       await manager.emit(new BundleBeforePrepareEvent({ bundle }));
+
       await bundle.prepare();
+
+      bundle.setPhase(BundlePhase.PREPARED);
       await manager.emit(new BundleAfterPrepareEvent({ bundle }));
     }
 
+    this.phase = KernelPhase.INITIALISING;
     for (const bundle of this.bundles) {
+      bundle.setPhase(BundlePhase.BEFORE_INITIALISATION);
       await manager.emit(new BundleBeforeInitEvent({ bundle }));
+
       await bundle.init();
+
+      bundle.setPhase(BundlePhase.INITIALISED);
       await manager.emit(new BundleAfterInitEvent({ bundle }));
     }
 
-    this.isInitialised = true;
+    this.phase = KernelPhase.INITIALISED;
+
     await manager.emit(new KernelAfterInitEvent());
   }
 
@@ -86,7 +112,7 @@ export class Kernel {
   /**
    * @param classType
    */
-  public hasBundle(classType: typeof Bundle): boolean {
+  public hasBundle(classType: IBundleConstructor): boolean {
     return Boolean(this.bundles.find(b => b instanceof classType));
   }
 
@@ -94,17 +120,33 @@ export class Kernel {
    * @param bundles
    */
   public addBundle(bundle: Bundle) {
-    if (this.isInitialised) {
-      raise(Errors.NO_BUNDLE_AFTER_INIT.message());
+    if (this.phase === KernelPhase.FROZEN) {
+      throw new KernelFrozenException();
     }
 
-    if (this.hasBundle(bundle.constructor as typeof Bundle)) {
-      raise(Errors.SINGLE_INSTANCE_BUNDLES.message());
+    // We force it with .as because constructor is considered a function
+    if (this.hasBundle(bundle.constructor as IBundleConstructor)) {
+      throw new BundleSingleInstanceException();
     } else {
       this.container.set(bundle.constructor, bundle);
     }
 
     this.bundles.push(bundle);
+  }
+
+  /**
+   * Add multiple bundles
+   * @param bundles
+   */
+  public addBundles(bundles: Bundle[]) {
+    bundles.forEach(bundle => this.addBundle(bundle));
+  }
+
+  /**
+   * Returns the current state of kernele instantiation
+   */
+  public getPhase(): KernelPhase {
+    return this.phase;
   }
 
   /**
