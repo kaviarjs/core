@@ -25,6 +25,7 @@ import {
 
 export const KernelDefaultParameters = {
   debug: true,
+  testing: false,
   context: KernelContext.DEVELOPMENT,
 };
 
@@ -74,7 +75,7 @@ export class Kernel {
     const manager = this.get<EventManager>(EventManager);
 
     this.phase = KernelPhase.PREPARING;
-    await manager.emit(new KernelBeforeInitEvent());
+    await manager.emit(new KernelBeforeInitEvent({ kernel: this }));
 
     for (const bundle of this.bundles) {
       bundle.setPhase(BundlePhase.BEFORE_PREPARATION);
@@ -99,7 +100,20 @@ export class Kernel {
 
     this.phase = KernelPhase.INITIALISED;
 
-    await manager.emit(new KernelAfterInitEvent());
+    await manager.emit(new KernelAfterInitEvent({ kernel: this }));
+  }
+
+  /**
+   * Useful function to hook in the initialisation of your application
+   * @param handler
+   */
+  protected onInit(handler: (container?: ContainerInstance) => void) {
+    const manager = this.get<EventManager>(EventManager);
+    if (this.phase === KernelPhase.INITIALISED) {
+      handler(this.container);
+    } else {
+      manager.addListener(KernelAfterInitEvent, () => handler(this.container));
+    }
   }
 
   /**
@@ -119,7 +133,7 @@ export class Kernel {
   /**
    * @param bundles
    */
-  public addBundle(bundle: Bundle) {
+  public addBundle(bundle: Bundle<any>) {
     if (this.phase === KernelPhase.FROZEN) {
       throw new KernelFrozenException();
     }
@@ -155,5 +169,33 @@ export class Kernel {
    */
   public get<T = any>(serviceId: any) {
     return this.container.get<T>(serviceId);
+  }
+
+  /**
+   * Verify whether it is running in a production environment
+   */
+  public isProduction(): boolean {
+    return this.parameters.context === KernelContext.PRODUCTION;
+  }
+
+  /**
+   * Verify whether it is running in a development environment
+   */
+  public isDevelopment(): boolean {
+    return this.parameters.context === KernelContext.DEVELOPMENT;
+  }
+
+  /**
+   * Verify whether it is running in a development environment
+   */
+  public isTesting(): boolean {
+    return this.parameters.testing === true;
+  }
+
+  /**
+   * Verify whether it is running in a production environment
+   */
+  public isDebug(): boolean {
+    return this.parameters.debug === true;
   }
 }

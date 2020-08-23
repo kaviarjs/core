@@ -61,7 +61,6 @@ export function On(
   eventClass: IEventConstructor,
   eventOptions?: IEventHandlerOptions
 ) {
-  console.log("setting metadata");
   return Reflect.metadata(eventHandlerMetadata, { eventClass, eventOptions });
 }
 

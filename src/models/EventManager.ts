@@ -8,12 +8,12 @@ import {
 
 export const HandlerOptionsDefaults = { order: 0 };
 
-export class Event<T = any> {
+export class Event<T = null> {
   public data: T;
 
-  constructor(data?: T) {
-    if (data) {
-      this.data = data;
+  constructor(...args: T extends null ? [] : [T]) {
+    if (args[0]) {
+      this.data = args[0];
     }
   }
 
@@ -33,7 +33,7 @@ export class EventManager {
    * Emit to all listeners of this event
    * @param data
    */
-  public async emit(event: Event): Promise<void> {
+  public async emit(event: Event<any>): Promise<void> {
     await event.validate();
 
     let listeners = this.getListeners(
@@ -74,7 +74,7 @@ export class EventManager {
 
     listeners.push({
       handler,
-      order: options.order,
+      order: options.order || 0,
       filter: options.filter,
     });
 
@@ -94,7 +94,7 @@ export class EventManager {
     options: IEventHandlerOptions = HandlerOptionsDefaults
   ) {
     this.globalListeners.push({
-      order: options.order,
+      order: options.order || 0,
       filter: options.filter,
       handler,
     });

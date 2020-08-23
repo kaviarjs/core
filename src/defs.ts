@@ -31,8 +31,7 @@ export interface IError {
 
 export enum KernelContext {
   DEVELOPMENT = "development",
-  STAGING = "staging",
-  PREPRODUCTION = "preproduction",
+  PRE_PRODUCTION = "pre-production",
   PRODUCTION = "production",
 }
 
@@ -60,13 +59,15 @@ export enum BundlePhase {
 
 export interface IKernelParameters {
   debug: boolean;
+  testing: boolean;
   context: KernelContext;
   [key: string]: any;
 }
 
 export interface IKernelParametersPassable {
-  debug?: boolean;
+  testing?: boolean;
   context?: KernelContext;
+  debug?: boolean;
   [key: string]: any;
 }
 
@@ -75,8 +76,8 @@ export interface IKernelOptions {
   bundles?: Bundle<any>[];
 }
 
-export interface IEventConstructor {
-  new (): Event;
+export interface IEventConstructor<T = any> {
+  new (...args: T extends null ? [] : [T]): Event<T>;
 }
 
 export type EventHandlerType = (event: Event<any>) => void;
@@ -90,6 +91,6 @@ export interface IListenerStorage {
 }
 
 export interface IEventHandlerOptions {
-  order: number;
+  order?: number;
   filter?: (event: Event<any>) => boolean;
 }

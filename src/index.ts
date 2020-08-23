@@ -7,6 +7,7 @@ import { Exception } from "./models/Exception";
 import { EventManager, Event } from "./models/EventManager";
 import { Listener, On } from "./models/Listener";
 
+export * from "./exceptions";
 export * from "./di";
 export * from "./events";
 export * from "./defs";

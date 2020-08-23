@@ -144,7 +144,7 @@ describe("EventManager", () => {
   });
 
   it("should work instantiating bundle servces", done => {
-    class InvoicePaid extends Event {}
+    class InvoicePaid extends Event<null> {}
     class InvoiceListener extends Listener {
       init() {
         assert.instanceOf(this.get(EventManager), EventManager);
@@ -168,7 +168,7 @@ describe("EventManager", () => {
   });
 
   it("should work with @On decorator", done => {
-    class InvoicePaid extends Event {}
+    class InvoicePaid extends Event<null> {}
     class InvoiceListener extends Listener {
       @On(InvoicePaid)
       async onInvoicePaid(event: InvoicePaid) {

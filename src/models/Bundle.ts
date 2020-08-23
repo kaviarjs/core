@@ -7,28 +7,42 @@ import {
   BundleFrozenException,
 } from "../exceptions";
 
-export abstract class Bundle<T = any> implements IBundle<T> {
+/**
+ * @template T this represents the final configuration of the bundle accessible via bundle.config
+ * @template R this represents the required configuration that must be provided when instantiating the bundle
+ */
+export abstract class Bundle<T = any, R = null> implements IBundle<T> {
   /**
    * Dev Note:
    * We haven't made defaultConfig static because we want by default to use Partial<T>
    * and static variables cannot reference class type paramters (TS2302)
    */
-  protected defaultConfig: Partial<T> = {};
+  protected defaultConfig: Partial<T>;
+  protected requiredConfig: R | Partial<T>;
   protected config: T;
   protected kernel: Kernel;
   protected phase: BundlePhase;
   public readonly dependencies: Array<IBundleConstructor<any>> = [];
 
-  constructor(config?: T) {
-    if (config) {
-      this.config = config;
+  /**
+   * The logic here is like this, if there's a Required (R) set of config then we oblige the user to enter it in the constructor
+   * If not we allow him to *optionally* enter a partial of the final configuration (T)
+   *
+   * @param args.0 Configuration for this bundle
+   */
+  constructor(...args: R extends null ? Partial<T>[] : [R]) {
+    if (args.length && args[0]) {
+      this.requiredConfig = args[0];
     }
   }
 
   public async setup(kernel: Kernel) {
     this.kernel = kernel;
     // Note: we do this here because defaultConfig gets the value after construction()
-    this.config = Object.assign({}, mergeDeep(this.defaultConfig, this.config));
+    this.config = Object.assign(
+      {},
+      mergeDeep(this.defaultConfig, this.requiredConfig)
+    );
     await this.validate(this.config);
 
     // Check dependencies
@@ -95,7 +109,8 @@ export abstract class Bundle<T = any> implements IBundle<T> {
    */
   protected async warmup(services: Array<any>) {
     for (let i = 0; i < services.length; i++) {
-      const initialisable = this.container.get<any>(services[i]);
+      const serviceClass = services[i];
+      const initialisable = this.container.get<any>(serviceClass);
 
       // If it contains an init function just run it as well
       if (initialisable.init) {

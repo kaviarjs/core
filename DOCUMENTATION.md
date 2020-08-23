@@ -6,18 +6,6 @@ A powerful and lightweight module composition strategy responsible for orchestra
 npm install --save @kaviar/core
 ```
 
-## Documentation
-
-Table of Contents:
-
-- [Basic Setup](#basic-setup)
-- [Dependency Injection](#dependency-injection)
-- [Event Manager](#event-manager)
-- [Bundles](#bundles)
-- [Listening to Events](#listening-to-events)
-- [Exceptions](#exceptions)
-- [Hacking Bundles](#hacking-bundles)
-
 ## Basic Setup
 
 The kernel is what orchestrates all of your bundles.
@@ -35,9 +23,7 @@ import { Bundle } from "@kaviar/core";
 
 class AppBundle extends Bundle {
   async init() {
-    // Start your API
-    // Register Event Listeners
-    // etc
+    // Start your API. For example connect to a database.
   }
 }
 ```
@@ -46,26 +32,27 @@ We can now add bundles to our `kernel` until it gets initialised:
 
 ```typescript
 const kernel = new Kernel({
-  bundles: [new OtherBundle()],
-  parameters: {
-    ANYTHING: "you like",
-  },
+  bundles: [new AppBundle()],
 });
 
 // Add bundles outside constructor
-kernel.addBundle(new MyBundle());
-kernel.init(); // you can no longer add bundles after initialisation
+kernel.addBundle(new OtherBundle());
+
+kernel.init().then(() => {
+  console.log("Kernel has been initialised.");
+});
 ```
 
 Initialisation process prepares and initialiases all the bundles registered inside it. You can regard Bundles as groups of independent logic or strongly separated concerns.
 
 ## Dependency Injection
 
-We never instantiate via `new` we only fetch instances of our services through the container.
+We never instantiate via `new` we only fetch instances of our services through the container. Below we show-case a super simple way how we can use dependency injection between services
 
 ```typescript
 import { Service } from "@kaviar/core";
 
+// We are currently using container from kernel, but don't worry we will show you how we will get access to the container from inside our Bundle
 const container = kernel.container;
 
 @Service()
@@ -101,38 +88,40 @@ const a = container.get<A>(A);
 a === container.get<A>(A); // true
 ```
 
-If you specify a list of parameters:
+You can also specify a list of parameters to the kernel, that can later be retrieved from the container
 
 ```js
 new Kernel({
   parameters: {
-    debug: true,
+    // Just some examples, they can be anything
+    APPLICATION_URL: "https://www.google.com/",
+    DEBUG: true,
   },
 });
 
 // You can get parameters via the getter, wrapping the key in %s
-const { domain, apiKey } = container.get("%debug%");
-```
+const applicationUrl = container.get("%APPLICATION_URL%");
 
-You will have access to the container from within your bundle lifecycle functions. This example was just for illustrating the concept of DI, you are not going to use the `kernel.container`
+// Or you can get them via container.get(Kernel).parameters.debug
+```
 
 You can inject parameters from kernel, or other services like this:
 
 ```typescript
 @Service()
 class A {
-  // Inject via property, note it uses a function
-  @Inject(() => "%debug%")
+  // Inject via property, note: it uses a function
+  @Inject(() => "%DEBUG%")
   protected isDebug: boolean;
 
   // Inject via constructor
-  constructor(@Inject("%context%") context: KernelContext) {
+  constructor(@Inject("%APPLICATION_URL%") applicationUrl: string) {
     // Do something based on the context
   }
 }
 ```
 
-## Event Manager
+## Async Event Management
 
 Kaviar encourages event-driven applications. We encourage services to dispatch events rather than calling other services.
 
@@ -170,40 +159,55 @@ manager.addListener(
 );
 ```
 
-You can also add a filter to the option, that will only allow certain "instances" of events. Let's say everytime you insert an object into the databse you emit an event that contains also the collectionName in it. And you would like to listen to events for a certain collection:
+You can also add a filter to the option, that will only allow certain "instances" of events. Let's say everytime you insert an object into the database you emit an event that contains also the collectionName in it. And you would like to listen to events for a certain collection:
 
 ```typescript
-manager.addListener(ObjectInsertedEvent, async () => {}, {
-  filter: e => e.collectionName === "users",
-});
+class ObjectInsertedEvent extends Event<{
+  collectionName: string;
+}> {}
+
+manager.addListener(
+  ObjectInsertedEvent,
+  async (e: ObjectInsertedEvent) => {
+    // Do something when the event
+  },
+  {
+    filter: e => e.data.collectionName === "users",
+  }
+);
 ```
 
 This is just a shorthand function so it allows your handler to focus on the task at hand rather than conditioning execution.
 
 ## Bundles
 
-Ok, now that you've learned the basics, let's understand where exactly to put these services and events, by exploring a bundle.
+Ok, now that you've learned the basics of containers, event management. Let's understand where exactly to put these services and events, by exploring a bundle. You should not have services or events outside a bundle. The bundle is what wraps them up.
 
 ```typescript
-export type MyBundleConfigType = {
+export interface ISaaSBundleConfig {
   subscriptionFee: number;
   currency: string;
-};
+}
 
-class MyBundle extends Bundle<MyBundleConfigType> {}
+export interface ISaaSBundleRequiredConfig {
+  subscriptionFee: number;
+}
+
+class SaaSBundle extends Bundle<ISaaSBundleConfig> {
+  defaultConfig = {
+    // Not that this will be deeply merged with the config provided resulting into final config object
+    currency: "USD",
+  };
+
+  async init() {
+    // Access config here, example: this.config.currency
+  }
+}
 
 // You benefit of autocompletion in the constructor
-const bundle = new MyBundle({
+const bundle = new SaaSBundle({
   subscriptionFee: 10.0,
-  currency: "USD",
 });
-```
-
-Above you see a bundle that stores the configuration inside `config` property of the Bundle, and that's about it, it does nothing else until the kernel is booted up.
-
-```typescript
-kernel.addBundle(bundle);
-kernel.init();
 ```
 
 Bundles have the following lifecycle:
@@ -217,11 +221,10 @@ class MyBundle extends Bundle<MyBundleConfig> {
   // Runs before KernelBeforeInitEvent
   async hook() {}
 
-  // Here you can basically prepare for initialisation
-  // And give other bundle's a chance to modify this bundle's behavior
+  // Here you can basically prepare for initialisation, for example registering listeners, binding configurations to services. Be careful that at this level you should not emit events as they may not have the listeners registered in all bundles yet.
   async prepare() {}
 
-  // runs the initialisation part, binds services, register application-level listeners, creates event loops, etc
+  // The final step in the bundle's lifecycle. This is where bundles usually start event loops (you start express), or connect to the database
   async init() {}
 }
 ```
@@ -256,15 +259,16 @@ import {
 
 class MyBundle extends Bundle {
   hook() {
-    // Let's say you want to do stuff, after MyOtherBundle gets prepared
+    // Let's say you want to do stuff, after MyOtherBundle gets prepared, and you don't really care about the order.
     const manager = this.get<EventManager>(EventManager);
 
     manager.addListener(
       BundleAfterPrepareEvent,
       async (e: BundleAfterPrepareEvent) => {
-        if (e.data.bundle instanceof MyOtherBundle) {
-          // Do stuff
-        }
+        // Do something
+      },
+      {
+        filter: e => e.data.bundle instanceof MyOtherBundle,
       }
     );
   }
@@ -276,23 +280,27 @@ Let's say we have a bundle that needs an API key, for example, `MailBundle` need
 ```typescript
 import { Inject, Service, Token, Bundle } from "@kaviar/core";
 
+// {bundle}/contants.ts
 const Constants = {
   API_KEY: new Token(),
 };
 
+// {bundle}/services/MailService.ts
 @Service()
 class MailService {
-  @Inject(() => Constants.API_KEY)
-  protected apiKey;
+  constructor(@Inject(Constants.API_KEY) protected readonly apiKey: string) {}
 
-  send() {}
+  send() {
+    // access this.apiKey
+  }
 }
 
-type MailBundleConfigType = {
+// {bundle}/{bundle}.ts
+interface IMailBundleConfig {
   apiKey: string;
-};
+}
 
-class MailBundle extends Bundle<MailBundleConfigType> {
+class MailBundle extends Bundle<IMailBundleConfig> {
   async prepare() {
     // note that this suited for the preparation phase
     // while you can easily do it in init() this can give a chance to other bundles
@@ -302,40 +310,26 @@ class MailBundle extends Bundle<MailBundleConfigType> {
 }
 ```
 
-You can also inject it via constructor, as well:
-
-```typescript
-import { Inject } from "@kaviar/core";
-
-class MailService {
-  constructor(@Inject(Constants.API_KEY) protected apiKey: string) {}
-}
-```
-
 ## Listening to Events
 
 The way we listen to events, we have to register them somehow. This is why we introduce the concept of "warmup" for listeners.
 
 ```typescript
-import { Listener } from "@kaviar/core";
+import { Listener, On } from "@kaviar/core";
 
 class NotificationListener extends Listener {
-  @On(UserAddedEvent)
+  @On(UserAddedEvent, {
+    /* order, filter */
+  })
   onUserAdded(e: UserAddedEvent) {
-    // As a listener you have access to the container
-    // However you can inject your own services
-    const notificationService = this.get<NotificationService>(
-      NotificationService
-    );
-
-    notificationService.create(userId, "User has been added");
+    // Do something
   }
 }
 ```
 
 ```typescript
 class AppBundle extends Bundle {
-  async init() {
+  async prepare() {
     // Warmup forces service construction, and calls the init() function with no arguments
     // If the function exists.
     await this.warmup([NotificationListener]);
@@ -387,21 +381,21 @@ This would be suited when you expose a bundle in which you allow a certain servi
 ```typescript
 abstract class HashService {
   hash(str: string) {
-    return str; // safest hasher in the world.
+    return md5(str);
   }
 }
 
 // a placeholder, or declare hash abstract and implement it here, your choice or a mixture of both depending on the use-case
 class DefaultHashService extends HashService {}
 
-class SecurityBundle extends Bundle<{hasher?: HashService}> {
+class SecurityBundle extends Bundle<{ hasher: HashService }> {
   static defaultConfig = {
     hasher: DefaultHashService,
   };
 
   prepare() {
-    // Now that I've bound HashService
-    this.container.set(HashService, this.config.hasher);
+    // We bind HashService, to use a different constructor
+    this.container.set({ id: HashService, type: this.config.hasher });
   }
 }
 
@@ -410,9 +404,8 @@ kernel.addBundle(
   new SecurityBundle({
     hasher: ExtendedHashService,
   })
+  // Now every service that depends on HashService will be overriden
 );
-
-kernel.container.get(HashService), // ExtendedHashService
 ```
 
 This strategy is to explicitly state which hasher you want in the constructor, but in real-life scenarios, you'll most likely do this inside your own `Application Bundle`
@@ -424,19 +417,24 @@ class SecurityExtensionBundle extends Bundle {
   async hook() {
     const manager = this.get<EventManager>(EventManager);
 
-    manager.on(BundleBeforePrepareEvent, (e: BundleBeforePrepareEvent) => {
-      const { bundle } = e.data;
-      if (bundle instanceof SecurityBundle) {
+    // Before SecurityBundle is prepared, I can either modify the config
+    manager.addListener(
+      BundleBeforePrepareEvent,
+      (e: BundleBeforePrepareEvent) => {
+        const { bundle } = e.data;
         bundle.updateConfig({
           hasher: MyExtendedHasher,
         });
+      },
+      {
+        filter: e => e.data.bundle instanceof SecurityBundle,
       }
-    });
+    );
   }
 }
 ```
 
-This strategy may feel a bit obscure as you allow any bundle to modify the config at any stage, if you want to prevent such things happening to your **precious** bundle, you can do something like:
+This strategy may feel a bit obscure as you allow any bundle to modify the config at any stage, if you want to prevent such things happening to your bundle, you can do something like:
 
 ```typescript
 class SecurityBundle extends Bundle {
@@ -451,18 +449,7 @@ class SecurityBundle extends Bundle {
   }
 }
 
-class SecurityExtensionBundle extends Bundle {
-  async hook() {
-    const manager = this.get<EventManager>(EventManager);
-
-    manager.on(BundleBeforePrepareEvent, (e: BundleBeforePrepareEvent) => {
-      const { bundle } = e.data;
-      if (bundle instanceof SecurityBundle) {
-        bundle.setHasher(MyExtendedHasher);
-      }
-    });
-  }
-}
+// And now you call setHasher instead of updateConfig.
 ```
 
 ## Conclusion

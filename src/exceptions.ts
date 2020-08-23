@@ -35,3 +35,11 @@ export class MethodNotImplementedException extends Exception<{
     return `Method "${method}" not implemented.`;
   }
 }
+
+export class MissingParameterException extends Exception<{
+  name: string;
+}> {
+  getMessage() {
+    return `Missing the parameter: "${this.data.name}" from Kernel.`;
+  }
+}
