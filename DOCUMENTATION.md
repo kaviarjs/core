@@ -43,11 +43,11 @@ kernel.init().then(() => {
 });
 ```
 
-Initialisation process prepares and initialiases all the bundles registered inside it. You can regard Bundles as groups of independent logic or strongly separated concerns.
+Initialisation process prepares and initialiases all the bundles registered inside it. You can regard your `Bundles` as groups of independent logic or strongly separated concerns.
 
 ## Dependency Injection
 
-We never instantiate via `new` we only fetch instances of our services through the container. Below we show-case a super simple way how we can use dependency injection between services
+We never instantiate via `new` we only fetch instances of our services through the container, and there's only one container which is provided by the `Kernel`. Below we show-case a super simple way how we can use dependency injection between services
 
 ```typescript
 import { Service } from "@kaviar/core";
@@ -59,8 +59,8 @@ const container = kernel.container;
 class B {}
 
 @Service()
-// Automatic injection
 class A {
+  // Automatic injection
   constructor(b: B) {
     this.b = b;
   }
@@ -102,7 +102,7 @@ new Kernel({
 // You can get parameters via the getter, wrapping the key in %s
 const applicationUrl = container.get("%APPLICATION_URL%");
 
-// Or you can get them via container.get(Kernel).parameters.debug
+// Or you can get them via kernel.parameters
 ```
 
 You can inject parameters from kernel, or other services like this:
@@ -135,6 +135,7 @@ class UserCreatedEvent extends Event<{
 const manager = container.get(EventManager);
 
 manager.addListener(UserCreatedEvent, (e: UserCreatedEvent) => {
+  // The data provided in event's constructor is found in event.data property
   console.log(e.data.userId);
 });
 
@@ -181,19 +182,25 @@ This is just a shorthand function so it allows your handler to focus on the task
 
 ## Bundles
 
-Ok, now that you've learned the basics of containers, event management. Let's understand where exactly to put these services and events, by exploring a bundle. You should not have services or events outside a bundle. The bundle is what wraps them up.
+Ok, now that you've learned the basics of containers and async event management, it's time to understand where exactly to put these services and events. You should not have services or events outside a bundle. The bundle is what wraps them up.
+
+Let's create a Bundle that handles our subcriptions:
 
 ```typescript
+// Here we define the configuration the bundle can have
 export interface ISaaSBundleConfig {
   subscriptionFee: number;
   currency: string;
 }
 
+// Here we define the config that is accepted by the bundle
+// Think of this as a subset of the config above.
 export interface ISaaSBundleRequiredConfig {
   subscriptionFee: number;
 }
 
-class SaaSBundle extends Bundle<ISaaSBundleConfig> {
+// Note that these configurations are optional.
+class SaaSBundle extends Bundle<ISaaSBundleConfig, ISaaSBundleRequiredConfig> {
   defaultConfig = {
     // Not that this will be deeply merged with the config provided resulting into final config object
     currency: "USD",
@@ -208,6 +215,8 @@ class SaaSBundle extends Bundle<ISaaSBundleConfig> {
 const bundle = new SaaSBundle({
   subscriptionFee: 10.0,
 });
+
+// And now you can add it to your Kernel.
 ```
 
 Bundles have the following lifecycle:
@@ -221,7 +230,7 @@ class MyBundle extends Bundle<MyBundleConfig> {
   // Runs before KernelBeforeInitEvent
   async hook() {}
 
-  // Here you can basically prepare for initialisation, for example registering listeners, binding configurations to services. Be careful that at this level you should not emit events as they may not have the listeners registered in all bundles yet.
+  // Here you can basically prepare for initialisation, for example registering listeners, binding configurations to services.
   async prepare() {}
 
   // The final step in the bundle's lifecycle. This is where bundles usually start event loops (you start express), or connect to the database
@@ -248,7 +257,7 @@ Kernel also emits the following events (name descriptive enough), and listeners 
 
 So, in theory you have the chance to hook even more to the bundles you love:
 
-```typescript
+```ts
 import {
   Bundle,
   Events,
@@ -259,7 +268,7 @@ import {
 
 class MyBundle extends Bundle {
   hook() {
-    // Let's say you want to do stuff, after MyOtherBundle gets prepared, and you don't really care about the order.
+    // Let's say you want to do stuff, after MyOtherBundle gets prepared.
     const manager = this.get<EventManager>(EventManager);
 
     manager.addListener(
@@ -275,12 +284,16 @@ class MyBundle extends Bundle {
 }
 ```
 
-Let's say we have a bundle that needs an API key, for example, `MailBundle` needs some authentication parameters. The way we connect Bundle's config to the container is by setting some constants into the container which the services use in their instantiation. Please do not use strings as strings may collide, rely on symbols.
+:::caution
+Be careful if you emit certain events within the lifecycle of your bundles, because usually listener registration is done in prepare(), and if you emit an event before its handler was registered, it will not reach the listener.
+:::
+
+Let's say we have a bundle that needs an API key, for example, `MailBundle` needs some authentication parameters. The way we connect Bundle's config to the container is by setting some constants into the container which the services use in their instantiation.
 
 ```typescript
 import { Inject, Service, Token, Bundle } from "@kaviar/core";
 
-// {bundle}/contants.ts
+// {bundle}/constants.ts
 const Constants = {
   API_KEY: new Token(),
 };
@@ -302,9 +315,7 @@ interface IMailBundleConfig {
 
 class MailBundle extends Bundle<IMailBundleConfig> {
   async prepare() {
-    // note that this suited for the preparation phase
-    // while you can easily do it in init() this can give a chance to other bundles
-    // to hack this bundle's behavior after it has been prepared
+    // We do this in prepare() phase
     this.container.set(Constants.API_KEY, this.config.apiKey);
   }
 }
@@ -312,11 +323,12 @@ class MailBundle extends Bundle<IMailBundleConfig> {
 
 ## Listening to Events
 
-The way we listen to events, we have to register them somehow. This is why we introduce the concept of "warmup" for listeners.
+In order to listen to events we have to register them somehow. This is why we introduce the concept of "warmup" for listeners.
 
 ```typescript
 import { Listener, On } from "@kaviar/core";
 
+// The base Listener class has a init() function that registers the events accordingly
 class NotificationListener extends Listener {
   @On(UserAddedEvent, {
     /* order, filter */
@@ -339,7 +351,7 @@ class AppBundle extends Bundle {
 
 ## Exceptions
 
-It's nice to never rely on string matching to see which exception was thrown, and it's nice to have typesafety as well. We recommend you always use this instead of the standard `Error`.
+It's nice to never rely on string matching to see which exception was thrown, and it's nice to have typesafety as well. We recommend you always use this instead of the standard `Error`. The reason we changed the name to `Exception` instead of Error was to avoid confusion that these class would somehow extend the `Error` class.
 
 ```typescript
 import { Exception } from "@kaviar/core";
@@ -371,12 +383,15 @@ try {
 }
 ```
 
-## Hacking Bundles
+## Modifying Bundles
 
-Keep your bundle hackable, by allowing injection of customised services. The strategy is to use an `abstract class` as a placeholder.
+Keep your bundle easily modifiable by allowing injection of customised services. The strategy is to use an `abstract class` as a placeholder, but there are other solutions as well.
 
-**When would you like to do this?**
+:::note When would you like to do this?
 This would be suited when you expose a bundle in which you allow a certain service to be overriden.
+:::
+
+Let's think of a bundle that does some security thingies and they want to allow you to inject a custom hash function.
 
 ```typescript
 abstract class HashService {
@@ -408,9 +423,7 @@ kernel.addBundle(
 );
 ```
 
-This strategy is to explicitly state which hasher you want in the constructor, but in real-life scenarios, you'll most likely do this inside your own `Application Bundle`
-
-You have 2 ways, alter the configuration of SecurityBundle:
+This strategy is to explicitly state which hasher you want in the constructor, but in real-life scenarios, you'll most likely do this inside your own `AppBundle`:
 
 ```typescript
 class SecurityExtensionBundle extends Bundle {
@@ -422,6 +435,8 @@ class SecurityExtensionBundle extends Bundle {
       BundleBeforePrepareEvent,
       (e: BundleBeforePrepareEvent) => {
         const { bundle } = e.data;
+
+        // We use the `updateConfig` command
         bundle.updateConfig({
           hasher: MyExtendedHasher,
         });
@@ -452,8 +467,34 @@ class SecurityBundle extends Bundle {
 // And now you call setHasher instead of updateConfig.
 ```
 
+:::info
+If you want to have more control over the `setHasher` you can use `bundle.phase` to ensure that it is set within the preparation or initialisation phase.
+:::
+
+```ts title="Phases for bundles and kernel"
+export enum KernelPhase {
+  DORMANT = "dormant",
+  BUNDLE_SETUP = "bundle-setup",
+  HOOKING = "hooking",
+  PREPARING = "preparing",
+  INITIALISING = "initialising",
+  INITIALISED = "initialised",
+  FROZEN = INITIALISED,
+}
+
+export enum BundlePhase {
+  DORMANT = "dormant",
+  SETUP = "setup",
+  HOOKING = "hooking",
+  HOOKED = "hooked",
+  BEFORE_PREPARATION = "preparing",
+  PREPARED = "prepared",
+  BEFORE_INITIALISATION = "initialising",
+  INITIALISED = "initialised",
+  FROZEN = INITIALISED,
+}
+```
+
 ## Conclusion
 
-Designing large-systems is hard, code tends to rot in time, you have to adopt an infinitely-scalable approach. This is just a small framework, it's not enough to use it in order to use it properly.
-
-Just describing what sounds an orchestra can make doesn't mean you can make music, it is now up to you to use this ecosystem and enlarge it.
+Just describing what sounds an orchestra can make doesn't mean you can make music, as shown above there are many ways to go around a certain problem especially when having interoperable bundles. The core just contains the building blocks, the music notes and it is up to you, the developer, to make an work of art out of it.
