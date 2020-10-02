@@ -30,7 +30,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
    *
    * @param args.0 Configuration for this bundle
    */
-  constructor(...args: R extends null ? Partial<T>[] : [R]) {
+  constructor(...args: R extends null ? [Partial<T>] : [R]) {
     if (args.length && args[0]) {
       this.requiredConfig = args[0];
     }
