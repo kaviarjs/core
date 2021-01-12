@@ -1,6 +1,6 @@
 import { Kernel } from "./Kernel";
 import { ContainerInstance } from "typedi";
-import * as mergeDeep from "merge-deep";
+import { mergeDeep } from "../utils/mergeDeep";
 import { IBundle, BundlePhase, IBundleConstructor } from "../defs";
 import {
   BundleDependencyException,
@@ -30,7 +30,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
    *
    * @param args.0 Configuration for this bundle
    */
-  constructor(...args: R extends null ? [Partial<T>] : [R]) {
+  constructor(...args: R extends null ? [Partial<T>?] : [R]) {
     if (args.length && args[0]) {
       this.requiredConfig = args[0];
     }
@@ -39,10 +39,9 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
   public async setup(kernel: Kernel) {
     this.kernel = kernel;
     // Note: we do this here because defaultConfig gets the value after construction()
-    this.config = Object.assign(
-      {},
-      mergeDeep(this.defaultConfig, this.requiredConfig)
-    );
+    const config: any = {};
+    mergeDeep(config, this.defaultConfig, this.requiredConfig);
+    this.config = config;
     await this.validate(this.config);
 
     // Check dependencies
