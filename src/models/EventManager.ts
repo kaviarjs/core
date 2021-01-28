@@ -4,6 +4,7 @@ import {
   IEventConstructor,
   EventHandlerType,
   IEventHandlerOptions,
+  Constructor,
 } from "../defs";
 
 export const HandlerOptionsDefaults = { order: 0 };
@@ -26,7 +27,7 @@ export class Event<T = null> {
 
 @Service()
 export class EventManager {
-  protected listeners = new Map<typeof Event, IListenerStorage[]>();
+  protected listeners = new Map<Constructor<Event<any>>, IListenerStorage[]>();
   protected globalListeners: IListenerStorage[] = [];
 
   /**
@@ -65,9 +66,9 @@ export class EventManager {
   /**
    * Adds the handler to this event
    */
-  public addListener(
-    eventClass: IEventConstructor,
-    handler: EventHandlerType,
+  public addListener<T>(
+    eventClass: IEventConstructor<T>,
+    handler: EventHandlerType<T>,
     options: IEventHandlerOptions = HandlerOptionsDefaults
   ): EventManager {
     const listeners = this.getListeners(eventClass);
@@ -104,7 +105,9 @@ export class EventManager {
     return this;
   }
 
-  protected getListeners(eventClass: IEventConstructor): IListenerStorage[] {
+  protected getListeners<T>(
+    eventClass: IEventConstructor<T>
+  ): IListenerStorage[] {
     if (!this.listeners.has(eventClass)) {
       this.listeners.set(eventClass, []);
     }

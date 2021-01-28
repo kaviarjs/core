@@ -120,7 +120,7 @@ export class Kernel {
    * Creates the container. Can give you a chance to extend it and apply middlewares
    */
   protected createContainer() {
-    return new ContainerInstance(Symbol("KernelContainer"));
+    return new ContainerInstance("KernelContainer");
   }
 
   /**

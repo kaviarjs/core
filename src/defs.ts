@@ -80,9 +80,14 @@ export interface IEventConstructor<T = any> {
   new (...args: T extends null ? [] : [T]): Event<T>;
 }
 
-export type EventHandlerType = (event: Event<any>) => void;
+export type EventHandlerType<T = any> = (
+  event: Event<T>
+) => void | Promise<void>;
 
-export type GlobalHandlerType<E, T> = (event: E, data: T) => void;
+export type GlobalHandlerType<E, T> = (
+  event: E,
+  data: T
+) => void | Promise<void>;
 
 export interface IListenerStorage {
   order: number;

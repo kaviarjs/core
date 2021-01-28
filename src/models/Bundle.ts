@@ -15,7 +15,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
   /**
    * Dev Note:
    * We haven't made defaultConfig static because we want by default to use Partial<T>
-   * and static variables cannot reference class type paramters (TS2302)
+   * and static variables cannot reference class type parameters (TS2302)
    */
   protected defaultConfig: Partial<T>;
   protected requiredConfig: R | Partial<T>;

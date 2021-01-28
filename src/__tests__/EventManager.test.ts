@@ -3,6 +3,7 @@ import { Event, EventManager } from "../models/EventManager";
 import { Listener, On } from "../models/Listener";
 import { Kernel } from "../models/Kernel";
 import { Bundle } from "../models/Bundle";
+import { Service } from "typedi";
 
 describe("EventManager", () => {
   it("should work properly", done => {
@@ -145,6 +146,8 @@ describe("EventManager", () => {
 
   it("should work instantiating bundle servces", done => {
     class InvoicePaid extends Event<null> {}
+
+    @Service()
     class InvoiceListener extends Listener {
       init() {
         assert.instanceOf(this.get(EventManager), EventManager);
@@ -169,6 +172,7 @@ describe("EventManager", () => {
 
   it("should work with @On decorator", done => {
     class InvoicePaid extends Event<null> {}
+    @Service()
     class InvoiceListener extends Listener {
       @On(InvoicePaid)
       async onInvoicePaid(event: InvoicePaid) {
