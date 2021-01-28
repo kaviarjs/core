@@ -25,7 +25,7 @@ export abstract class Listener {
         const { eventClass, eventOptions } = metadata;
         this.eventManager.addListener(
           eventClass,
-          event => method(event),
+          event => method.call(this, event),
           eventOptions
         );
       }
