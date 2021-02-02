@@ -69,7 +69,7 @@ export class EventManager {
   public addListener<T>(
     eventClass: IEventConstructor<T>,
     handler: EventHandlerType<T>,
-    options: IEventHandlerOptions = HandlerOptionsDefaults
+    options: IEventHandlerOptions<T> = HandlerOptionsDefaults
   ): EventManager {
     const listeners = this.getListeners(eventClass);
 

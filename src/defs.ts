@@ -95,7 +95,7 @@ export interface IListenerStorage {
   handler: EventHandlerType;
 }
 
-export interface IEventHandlerOptions {
+export interface IEventHandlerOptions<T = any> {
   order?: number;
-  filter?: (event: Event<any>) => boolean;
+  filter?: (event: Event<T>) => boolean;
 }
