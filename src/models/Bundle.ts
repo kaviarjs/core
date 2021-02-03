@@ -6,6 +6,7 @@ import {
   BundleDependencyException,
   BundleFrozenException,
 } from "../exceptions";
+import { EventManager } from "./EventManager";
 
 /**
  * @template T this represents the final configuration of the bundle accessible via bundle.config
@@ -56,6 +57,10 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
 
   get container(): ContainerInstance {
     return this.kernel.container;
+  }
+
+  get eventManager(): EventManager {
+    return this.container.get(EventManager);
   }
 
   // validate this.config, based on T
