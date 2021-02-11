@@ -1,7 +1,7 @@
 import { Kernel } from "./Kernel";
 import { ContainerInstance } from "typedi";
 import { mergeDeep } from "../utils/mergeDeep";
-import { IBundle, BundlePhase, IBundleConstructor } from "../defs";
+import { IBundle, BundlePhase, IBundleConstructor, DeepPartial } from "../defs";
 import {
   BundleDependencyException,
   BundleFrozenException,
@@ -18,8 +18,8 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
    * We haven't made defaultConfig static because we want by default to use Partial<T>
    * and static variables cannot reference class type parameters (TS2302)
    */
-  protected defaultConfig: Partial<T>;
-  protected requiredConfig: R | Partial<T>;
+  protected defaultConfig: DeepPartial<T>;
+  protected requiredConfig: R | DeepPartial<T>;
   protected config: T;
   protected kernel: Kernel;
   protected phase: BundlePhase;
@@ -31,7 +31,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
    *
    * @param args.0 Configuration for this bundle
    */
-  constructor(...args: R extends null ? [Partial<T>?] : [R]) {
+  constructor(...args: R extends null ? [DeepPartial<T>?] : [R]) {
     if (args.length && args[0]) {
       this.requiredConfig = args[0];
     }

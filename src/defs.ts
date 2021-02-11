@@ -17,6 +17,12 @@ export interface Constructor<T> {
   new (...args: any[]): T;
 }
 
+export type DeepPartial<T> = T extends null
+  ? any
+  : {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    };
+
 export interface IBundleConstructor<T = any> {
   new (...args: any[]): IBundle<T>;
 }
