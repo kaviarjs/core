@@ -107,7 +107,7 @@ export class Kernel {
    * Useful function to hook in the initialisation of your application
    * @param handler
    */
-  protected onInit(handler: (container?: ContainerInstance) => void) {
+  public onInit(handler: (container: ContainerInstance) => any) {
     const manager = this.get<EventManager>(EventManager);
     if (this.phase === KernelPhase.INITIALISED) {
       handler(this.container);

@@ -80,9 +80,9 @@ Now let's say the `databaseService` needs some credentials and a host to connect
 container.set("database_uri", process.env.DATABASE_URI);
 
 class DatabaseService {
-  constructor(@Inject("database_uri") databseUri) {
+  constructor(@Inject("database_uri") databaseUri) {
     // Just a sample for illustration
-    // this.client = mongodb.connect(databaseUri);
+    this.client = mongodb.connect(databaseUri);
   }
 }
 ```
