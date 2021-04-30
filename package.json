@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "reflect-metadata": "^0.1.13",
-    "typedi": "0.8.0"
+    "typedi": "0.10.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.3",
