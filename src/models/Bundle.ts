@@ -75,6 +75,10 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
   // Here you bind your services, register application-level listeners
   public async init(): Promise<void> {}
 
+  // When shutting down kernel, all bundles shutdown
+  // This is most likely used when testing to avoid hanging processes
+  public async shutdown(): Promise<void> {}
+
   /**
    * Returns the service by its id
    * @param serviceId

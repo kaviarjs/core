@@ -61,6 +61,7 @@ export enum BundlePhase {
   BEFORE_INITIALISATION = "initialising",
   INITIALISED = "initialised",
   FROZEN = INITIALISED,
+  SHUTDOWN = "shutdown",
 }
 
 export interface IKernelParameters {

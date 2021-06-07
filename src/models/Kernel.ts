@@ -104,6 +104,16 @@ export class Kernel {
   }
 
   /**
+   * Shutdown the kernel, shutdown will be called on all bundles
+   */
+  async shutdown() {
+    for (const bundle of this.bundles) {
+      await bundle.shutdown();
+      bundle.setPhase(BundlePhase.SHUTDOWN);
+    }
+  }
+
+  /**
    * Useful function to hook in the initialisation of your application
    * @param handler
    */
