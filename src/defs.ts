@@ -49,6 +49,7 @@ export enum KernelPhase {
   INITIALISING = "initialising",
   INITIALISED = "initialised",
   FROZEN = INITIALISED,
+  SHUTDOWN = "shutdown",
 }
 
 export enum BundlePhase {
@@ -66,6 +67,9 @@ export enum BundlePhase {
 
 export interface IKernelParameters {
   debug: boolean;
+  /**
+   * Are we currently in test mode, running our test suite?
+   */
   testing: boolean;
   context: KernelContext;
   [key: string]: any;

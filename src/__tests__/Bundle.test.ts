@@ -1,6 +1,8 @@
 import { Bundle } from "../models/Bundle";
 import { assert } from "chai";
 import { Kernel } from "../models/Kernel";
+import { EventManager } from "../models/EventManager";
+import { BundlePhase } from "../defs";
 
 describe("Bundle", () => {
   it("Should work with a config and a default config", () => {
@@ -101,5 +103,62 @@ describe("Bundle", () => {
     kernel.addBundle(bBundle);
 
     kernel.init();
+  });
+
+  it("Shoult get access to the event manager", async () => {
+    const kernel = new Kernel();
+
+    class A extends Bundle {}
+
+    const a = new A();
+    kernel.addBundle(a);
+    await kernel.init();
+
+    assert.instanceOf(a.eventManager, EventManager);
+  });
+
+  it("Should work with dependencies", async () => {
+    class A extends Bundle {}
+    class B extends Bundle {
+      dependencies = [A];
+    }
+    const kernel = new Kernel();
+
+    kernel.addBundle(new A());
+    kernel.addBundle(new B());
+
+    await kernel.init();
+
+    const kernel2 = new Kernel();
+    kernel2.addBundle(new B());
+
+    let inError = false;
+    try {
+      await kernel2.init();
+    } catch (e) {
+      inError = true;
+    }
+
+    assert.isTrue(inError);
+  });
+
+  it("should properly handle bundle phases", async () => {
+    const kernel = new Kernel();
+
+    class A extends Bundle {}
+
+    const a = new A();
+    kernel.addBundle(a);
+    assert.equal(a.getPhase(), BundlePhase.DORMANT);
+    await kernel.init();
+    let inError = false;
+
+    try {
+      a.setPhase(BundlePhase.PREPARED);
+    } catch (e) {
+      inError = true;
+    }
+
+    assert.isTrue(inError);
   });
 });

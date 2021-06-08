@@ -24,7 +24,7 @@ import {
 } from "../exceptions";
 
 export const KernelDefaultParameters = {
-  debug: true,
+  debug: false,
   testing: false,
   context: KernelContext.DEVELOPMENT,
 };
@@ -34,7 +34,7 @@ export class Kernel {
   readonly bundles: Bundle<any>[] = [];
   readonly parameters: IKernelParameters;
   readonly container: ContainerInstance;
-  protected phase: KernelPhase;
+  protected phase: KernelPhase = KernelPhase.DORMANT;
 
   constructor(options: IKernelOptions = {}) {
     this.options = options;
@@ -111,6 +111,8 @@ export class Kernel {
       await bundle.shutdown();
       bundle.setPhase(BundlePhase.SHUTDOWN);
     }
+
+    this.phase = KernelPhase.SHUTDOWN;
   }
 
   /**

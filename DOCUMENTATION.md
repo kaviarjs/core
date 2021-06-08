@@ -497,6 +497,10 @@ class UserNotAuthorizedException extends Exception<{
   userId: string;
   context: string;
 }> {
+  // optional specify a code for easy search
+  // please note that if you do this, you have to manage it properly
+  static code = "K10581";
+
   getMessage() {
     const { userId, context } = this.data;
 
@@ -515,7 +519,8 @@ try {
   viewUserProfile(profileId, { userId });
 } catch (e) {
   if (e instanceof UserNotAuthorizedException) {
-    // Do something, send an email!
+    // Do something
+    // You can access: e.message to see the compiled message + optionally prefixed with the code
   }
 }
 ```
@@ -630,6 +635,56 @@ export enum BundlePhase {
   INITIALISED = "initialised",
   FROZEN = INITIALISED,
 }
+```
+
+## Testing
+
+We recommend using [jest](https://jestjs.io/) for testing. The idea here is that when you have a `kernel` with multiple bundles, sometimes your bundles might behave differently, this is why we have a kernel parameter called `testing`.
+
+```ts
+const kernel = new Kernel({
+  bundles: [],
+  parameters: {
+    testing: true,
+  },
+});
+```
+
+When testing the full kernel you need to have an ecosystem creation function. We recommend having a separate `kernel.test.ts` file where you instantiate the kernel.
+
+```ts title="ecosystem.ts"
+import { kernel } from "../startup/kernel.test";
+
+const container = kernel.container;
+
+export { container, kernel };
+
+export async function createEcosystem() {
+  await kernel.init();
+}
+
+beforeAll(async () => {
+  return createEcosystem();
+});
+
+afterAll(async () => {
+  // This will call shutdown() on all bundles
+  // This is useful when you want to stop db connections or server loops
+  await kernel.shutdown();
+});
+```
+
+Ensure that the code above is loaded before all tests. Now you would be able to run your tests:
+
+```ts
+import { container } from "../ecosystem";
+
+describe("PostService", () => {
+  test("approvePost", () => {
+    const postService = container.get(PostService);
+    // Now you have full access to container and the bundles and other services to provide an integration test
+  });
+});
 ```
 
 ## Conclusion

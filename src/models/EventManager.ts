@@ -13,7 +13,7 @@ export class Event<T = null> {
   public data: T;
 
   constructor(...args: T extends null ? [] : [T]) {
-    if (args[0]) {
+    if (args[0] !== undefined) {
       this.data = args[0];
     }
   }

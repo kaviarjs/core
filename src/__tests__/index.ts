@@ -8,3 +8,4 @@ import "./utils/mergeDeep.test";
 import "./EventManager.test";
 import "./Kernel.test";
 import "./Bundle.test";
+import "./Exception.test";

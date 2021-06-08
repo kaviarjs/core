@@ -22,7 +22,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
   protected requiredConfig: R | DeepPartial<T>;
   protected config: T;
   protected kernel: Kernel;
-  protected phase: BundlePhase;
+  protected phase: BundlePhase = BundlePhase.DORMANT;
   public readonly dependencies: Array<IBundleConstructor<any>> = [];
 
   /**
@@ -132,7 +132,7 @@ export abstract class Bundle<T = any, R = null> implements IBundle<T> {
    * @param phase
    */
   public setPhase(phase: BundlePhase) {
-    if (this.phase === BundlePhase.FROZEN) {
+    if (this.phase === BundlePhase.FROZEN && phase !== BundlePhase.SHUTDOWN) {
       throw new BundleFrozenException();
     }
 
