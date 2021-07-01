@@ -21,6 +21,7 @@ describe("Exception", () => {
       assert.instanceOf(e, MyException);
       assert.instanceOf(e, Error);
       if (e instanceof MyException) {
+        assert.equal(e.getCode(), "BS1040");
         assert.equal(e.getMessage(), "ok");
         assert.equal(e.message, "(BS1040) ok");
       }
