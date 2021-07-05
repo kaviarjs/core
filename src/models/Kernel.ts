@@ -1,5 +1,5 @@
 import { Bundle } from "./Bundle";
-import { ContainerInstance } from "typedi";
+import { ContainerInstance } from "../di";
 import {
   KernelBeforeInitEvent,
   KernelAfterInitEvent,
